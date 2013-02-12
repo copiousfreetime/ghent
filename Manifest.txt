@@ -1,0 +1,3 @@
+bin/gen-gha-urls
+bin/gha-mirror
+bin/gha-sync
