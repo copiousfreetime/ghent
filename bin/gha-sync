@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+
+require 'cloudfiles'
+require 'mime/types'
+require 'colored'
+
+abort "GHENT_ROOT environment required" unless ENV['GHENT_ROOT']
+
+cf = CloudFiles::Connection.new(
+    :username => "copiousfreetime",
+    :api_key => "cbf15dfbf487d9b00706ed18940dca8e",
+    )
+
+asset_container = cf.container('githubarchive');
+ghent_root      = File.expand_path( ENV['GHENT_ROOT'] )
+data_dir        = File.join( ghent_root, "data" )
+
+
+# Get File Lists
+cdn_files   = asset_container.objects
+local_files = Dir.glob( File.join( data_dir, "*.gz" ) )
+
+to_upload = local_files.reject { |i| cdn_files.include?(i[pub_dir.to_s.length..-1]) }
+
+#upload fresh assets
+to_upload.each do |f|
+  unless FileTest.directory?(f) # ignore directories
+    relative_path = f[pub_dir.to_s.length..-1]
+    puts "    ↑".green + " Uploading -> " + relative_path
+    file = open(f)
+    types = MIME::Types.type_for(f)
+    object = asset_container.create_object relative_path, true
+    object.write file
+    object.content_type = types[0].to_s
+    file.close
+  end
+end
+
+puts "    Uploaded " + to_upload.size.to_s + " file(s)"
