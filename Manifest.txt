@@ -1,3 +1,14 @@
+CONTRIBUTING.md
+HISTORY.rdoc
+LICENSE
+Manifest.txt
+README.rdoc
+Rakefile
 bin/gen-gha-urls
 bin/gha-mirror
 bin/gha-sync
+lib/ghent.rb
+spec/spec_helper.rb
+spec/version_spec.rb
+tasks/default.rake
+tasks/this.rb
