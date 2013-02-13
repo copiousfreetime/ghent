@@ -7,8 +7,8 @@ require 'colored'
 abort "GHENT_ROOT environment required" unless ENV['GHENT_ROOT']
 
 cf = CloudFiles::Connection.new(
-    :username => "copiousfreetime",
-    :api_key => "cbf15dfbf487d9b00706ed18940dca8e",
+    :username => ENV['CF_USER'],
+    :api_key =>  ENV['CF_API_KEY']
     )
 
 asset_container = cf.container('githubarchive');
