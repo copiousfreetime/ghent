@@ -1,10 +1,9 @@
 #!/bin/sh
 
-GHENT_ROOT=${HOME}/Projects/ghent
 GHENT_DATA_DIR=${GHENT_ROOT}/data
 GHENT_BIN_DIR=${GHENT_ROOT}/bin
 GHENT_URL_GEN=${GHENT_BIN_DIR}/gen-gha-urls
 
 
 pushd ${GHENT_DATA_DIR}
-${GHENT_URL_GEN} | wget --timestamping --input-file=- --progress=bar
+${GHENT_URL_GEN} | wget --timestamping --input-file=-

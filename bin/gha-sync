@@ -1,39 +1,76 @@
 #!/usr/bin/env ruby
+# encoding: utf-8
 
 require 'cloudfiles'
 require 'mime/types'
 require 'colored'
+require 'digest/md5'
+require 'netrc'
 
 abort "GHENT_ROOT environment required" unless ENV['GHENT_ROOT']
 
+cf_creds = Netrc.read['cloudfiles']
+
 cf = CloudFiles::Connection.new(
-    :username => ENV['CF_USER'],
-    :api_key =>  ENV['CF_API_KEY']
+    :username => cf_creds.shift,
+    :api_key => cf_creds.shift
     )
 
 asset_container = cf.container('githubarchive');
 ghent_root      = File.expand_path( ENV['GHENT_ROOT'] )
 data_dir        = File.join( ghent_root, "data" )
 
+def full_list( container )
+  files = {}
+  marker = nil
+  loop do
+    cf_files = container.objects_detail( :marker => marker )
+    puts "Found #{cf_files.size}"
+    break if cf_files.size == 0
+    files.merge!( cf_files )
+    marker = files.keys.sort.last
+  end
+  return files
+end
 
 # Get File Lists
-cdn_files   = asset_container.objects
-local_files = Dir.glob( File.join( data_dir, "*.gz" ) )
+cf_files    = full_list( asset_container )
+local_files = Dir.glob( File.join( data_dir, "*.gz" ) ).sort
+uploaded = []
 
-to_upload = local_files.reject { |i| cdn_files.include?(i[pub_dir.to_s.length..-1]) }
-
-#upload fresh assets
-to_upload.each do |f|
-  unless FileTest.directory?(f) # ignore directories
-    relative_path = f[pub_dir.to_s.length..-1]
-    puts "    ↑".green + " Uploading -> " + relative_path
-    file = open(f)
-    types = MIME::Types.type_for(f)
-    object = asset_container.create_object relative_path, true
-    object.write file
-    object.content_type = types[0].to_s
-    file.close
+local_files.each do |fname|
+  next if File.directory?( fname )
+  begin
+    relative_path = File.basename( fname )
+    if cf_obj = cf_files.fetch( relative_path, nil ) then
+      local_md5 = Digest::MD5.file( fname ).to_s
+      local_fsize = File.size( fname )
+      $stderr.print "   #{relative_path} exists "
+      if (cf_obj[:hash] == local_md5) then
+        $stderr.print " md5 " + "ok".green
+        if (cf_obj[:bytes] == local_fsize ) then
+          $stderr.print " size " + "ok".green
+          $stderr.print " Skipping".yellow
+          $stderr.puts
+          next
+        else
+          $stderr.print " size (local = #{local_fsize.inspect} remote = #{cf_obj[:bytes].inspect} " + "fail".red
+        end
+      else
+        $stderr.print " md5 " + "fail".red
+      end
+      $stderr.puts
+    end
+    type          = MIME::Types.type_for(fname).first.to_s
+    $stderr.print "  ➨".green + " Uploading ➨ ".yellow + relative_path 
+    obj = asset_container.create_object( relative_path, true )
+    obj.load_from_filename( fname, { 'Content-Type' => type }, true )
+    uploaded << relative_path
+    $stderr.puts " ✔".green
+  rescue StandardError => e
+    $stderr.puts "error -> #{e}"
+    retry
   end
 end
 
-puts "    Uploaded " + to_upload.size.to_s + " file(s)"
+puts "    Uploaded " + uploaded.size.to_s + " file(s)"
