@@ -14,6 +14,7 @@ This.ruby_gemspec do |spec|
   spec.add_dependency( 'celluloid', '~> 0.12.4' )
   spec.add_dependency( 'addressable', '~> 2.3' )
   spec.add_dependency( 'netrc', '~> 0.7.7' )
+  spec.add_dependency( 'httpclient', '~> 2.3' )
 
   spec.add_development_dependency( 'rake'     , '~> 10.0.3')
   spec.add_development_dependency( 'minitest' , '~> 4.5.0' )
