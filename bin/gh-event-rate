@@ -1,0 +1,83 @@
+#!/usr/bin/env ruby
+
+require 'httpclient'
+require 'netrc'
+require 'hitimes'
+require 'set'
+require 'json'
+require 'link_header'
+
+netrc          = Netrc.read['api.github.com']
+common_headers = {'Authorization' => "#{netrc.shift} #{netrc.shift}"}
+gh_client      = HTTPClient.new
+metric         = Hitimes::TimedValueMetric.new( 'events' )
+size_metric    = Hitimes::ValueMetric.new( 'sizes' )
+seen           = {}
+done           = false
+back_requests    = [ ]
+forward_requests = [ ]
+
+trap(:INT) do
+  done = true
+end
+
+event_url = "https://api.github.com/events"
+sleep_interval = 0
+forward_requests.push [ event_url, nil, sleep_interval ]
+initial_fill = true
+
+loop do
+  break if done
+  url, etag, pause = if back_requests.empty? then
+                forward_requests.pop
+              else
+                back_requests.pop
+              end
+  metric.start unless initial_fill
+  sleep( pause ) if pause
+  puts "Fetching #{url} (#{etag})"
+  res       = gh_client.get( url, nil, common_headers.merge( 'If-Non-Match' => etag ))
+  events    = JSON.parse( res.body )
+  seen_before = 0
+
+  puts "#{res.status_code} -> Received #{events.size} events"
+  events.each do |event|
+    if seen.has_key?( event['id'] ) then
+      seen_before += 1
+    else
+      seen[event['id']] = event.to_s
+      size_metric.measure( event.to_s.size )
+    end
+  end
+
+  new_etag = res.headers['ETag']
+  puts "Found #{seen_before} duplicates"
+  sleep_interval = res.headers['X-Poll-Interval'].to_i
+
+  if seen_before < events.size then
+    if ll = res.headers['Link'] then
+      link = LinkHeader.parse( res.headers['Link'] )
+      if nlink = link.find_link(["rel", "next"]) then
+        back_requests.push [nlink.href, etag || new_etag ]
+      end
+    end
+  else
+    puts "All events are duplicates"
+    initial_fill = false
+  end
+
+  if url == event_url then
+    forward_requests.unshift [ event_url, new_etag, sleep_interval ]
+  end
+
+  puts "Back: #{back_requests.inspect}"
+  puts "Fwd : #{forward_requests.inspect}"
+  puts "*" * 80
+
+  metric.stop( events.size - seen_before ) unless initial_fill
+  puts "After sampling #{metric.unit_count} events over #{metric.duration} seconds the rate is #{metric.rate} eps"
+  puts "After measuring #{size_metric.count} events -> avg: #{size_metric.mean} min: #{size_metric.min} max: #{size_metric.max}"
+end
+
+puts "After sampling #{metric.unit_count} events over #{metric.duration} seconds the rate is #{metric.rate} eps"
+puts "After measuring #{size_metric.count} events -> avg: #{size_metric.mean} max: #{size_metric.min} min: #{size_metric.max}"

@@ -1,0 +1,58 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+require 'cloudfiles'
+require 'httpclient'
+require 'netrc'
+require 'addressable/uri'
+
+cf_creds = Netrc.read['cloudfiles']
+
+cf = CloudFiles::Connection.new(
+    :username => cf_creds.shift,
+    :api_key => cf_creds.shift
+    )
+
+asset_container = cf.container('githubarchive');
+
+def full_list( container )
+  files = {}
+  marker = nil
+  loop do
+    cf_files = container.objects_detail( :marker => marker )
+    break if cf_files.size == 0
+    files.merge!( cf_files )
+    marker = files.keys.sort.last
+  end
+  return files
+end
+
+# Get File Lists
+cf_files = full_list( asset_container )
+puts " Checking #{cf_files.size} cloud files against data.githubarchive.org"
+success = []
+failure = []
+
+$stdout.sync = true
+
+base_url = Addressable::URI.parse( "http://data.githubarchive.org" )
+client   = HTTPClient.new
+cf_files.keys.sort.each do |basename|
+#DATA.each_line do |basename|
+  basename.strip!
+  check_hash = cf_files[basename][:hash]
+
+  check_uri  = base_url.join( basename ).to_s
+  res = client.head( check_uri, nil, { 'If-None-Match' => check_hash } )
+  if res.status_code == 304 then
+    success << basename
+  else
+    failure << basename
+    puts "\n#{res.inspect}"
+  end
+  print "  success: #{"%6d" % success.size}\tfailure: #{"%6d" % failure.size}\ttotal: #{cf_files.size}\r"
+end
+
+puts "  success: #{"%6d" % success.size}\tfailure: #{"%6d" % failure.size}\ttotal: #{cf_files.size}\r"
+
+__END__
