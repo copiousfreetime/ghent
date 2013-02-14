@@ -32,7 +32,7 @@ module Ghent
     end
 
     def topic
-      :head_response
+      "head_response"
     end
 
     # Internal: subscription calback, this is invoked when the ApiRequest has
