@@ -32,7 +32,7 @@ module Ghent
     end
 
     def topic
-      "head_response"
+      :head_response
     end
 
     # Internal: subscription calback, this is invoked when the ApiRequest has
@@ -40,7 +40,7 @@ module Ghent
     # parameters.
     def event_response( _, response )
       self.etag          = response.headers['ETag']
-      self.poll_interval = response.headers['X-Poll-Interval'].to_i / 10
+      self.poll_interval = response.headers['X-Poll-Interval'].to_i
       info "#{self.class} event_response etag '#{etag}' and poll_interval #{poll_interval}"
     end
 
