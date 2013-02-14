@@ -11,10 +11,19 @@ module Ghent
     def initialize
       @etag = ""
       @poll_interval = 5
+      @timer         = nil
       @subscriber    = subscribe( topic, :event_response )
-      @timer         = after( poll_interval ) { submit_poll_request }
-      info "#{self.class} Public Events Poller started"
+      reset_timer
       async.submit_poll_request
+      info "#{self.class} Public Events Poller started"
+    end
+
+    def reset_timer
+      if timer.nil? or (timer.interval != poll_interval) then
+        self.timer = after( poll_interval ) { submit_poll_request }
+      end
+      info "#{self.class} resetting timer poll interval to #{timer.interval}"
+      timer.reset
     end
 
     def topic
@@ -40,12 +49,7 @@ module Ghent
       info "#{self.class} sumitting request #{r.inspect}"
 
       api_actor.mailbox << r
-      info "#{self.class} resetting timer poll interval from #{timer.interval} to #{poll_interval}"
-      self.timer.reset
-      if timer.interval != poll_interval then
-        self.timer.cancel
-        self.timer = after( poll_interval ) { submit_poll_request }
-      end
+      reset_timer
     end
   end
 end
