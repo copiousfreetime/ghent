@@ -5,16 +5,16 @@ require 'link_header'
 module Ghent
   # Actor that consumes the body of a response and processes the events. It may
   # or may not kick off other events based upon that result. It will split the
-  # full response into events that have not been seen before and append them to 
+  # full response into events that have not been seen before and append them to
   # the event consumer.
-  class PublicEventsSplitter
+  class EventsSplitter
     include Celluloid
     include Celluloid::Notifications
     include Celluloid::Logger
 
     attr_reader :lru
 
-    def topics 
+    def topics
       %w[ head_response next_response ]
     end
 
@@ -26,12 +26,12 @@ module Ghent
       end
     end
 
-    def public_event_worker
+    def event_worker
       loop do
-        break if Celluloid::Actor[:public_event_worker]
+        break if Celluloid::Actor[:event_worker]
         sleep 1
       end
-      Celluloid::Actor[:public_event_worker]
+      Celluloid::Actor[:event_worker]
     end
 
     def api_actor
@@ -42,12 +42,13 @@ module Ghent
       Celluloid::Actor[:api_request]
     end
 
-    def added_events( events )
+    def add_events( events )
       ne = []
       events.each do |event|
         next if lru.get( event['id'] )
         lru.put( event['id'], true )
-        ne << event['id'] 
+        ne << event['id']
+        event_worker.mailbox << event
       end
       return ne
     end
@@ -55,9 +56,9 @@ module Ghent
     def split_response( _, response )
       events = JSON.parse( response.body )
       info "#{self.class} splitting response from #{_}"
-      aevents = added_events( events )
-      info "#{self.class} added #{aevents.size} to lru which now has size #{lru.size}"
-      submit_next_request( response.headers ) unless aevents.empty?
+      added = add_events( events )
+      info "#{self.class} added #{added.size} to lru which now has size #{lru.size}"
+      submit_next_request( response.headers ) unless added.empty?
     end
 
     def submit_next_request( headers )
@@ -73,4 +74,4 @@ module Ghent
       end
     end
   end
-end 
+end

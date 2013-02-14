@@ -1,11 +1,12 @@
 require 'ghent/api_request'
-require 'ghent/public_events_trigger'
-require 'ghent/public_events_splitter'
+require 'ghent/events_trigger'
+require 'ghent/events_splitter'
 
 module Ghent
   class CollectionGroup < Celluloid::SupervisionGroup
-    supervise ::Ghent::PublicEventsTrigger, :as => :public_events_trigger
-    supervise ::Ghent::PublicEventsSplitter, :as => :public_events_splitter
+    supervise ::Ghent::EventsTrigger,  :as => :events_trigger
+    supervise ::Ghent::EventsSplitter, :as => :events_splitter
+    supervise ::Ghent::EventWorker, :as => :event_worker
     supervise ::Ghent::ApiRequest, :as => :api_request
   end
 end

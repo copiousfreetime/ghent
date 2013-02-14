@@ -1,9 +1,9 @@
 module Ghent
-  # Actor that triggers an initial top level event polling request. 
+  # Actor that triggers an initial top level event polling request.
   # It subscribes to the responses it sends so that it may update the ETag value
   # and so it may update its timer interval so it does't get us in trouble with
   # GitHub.
-  class PublicEventsTrigger
+  class EventsTrigger
     include Celluloid
     include Celluloid::Notifications
     include Celluloid::Logger
@@ -44,7 +44,7 @@ module Ghent
       info "#{self.class} event_response etag '#{etag}' and poll_interval #{poll_interval}"
     end
 
-    # Internal: 
+    # Internal:
     # Get the ApiRequest Actor, and make sure it exists before you return it.
     def api_actor
       loop do

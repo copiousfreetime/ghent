@@ -4,7 +4,7 @@ end
 
 require 'celluloid'
 require 'ghent/api_request'
-require 'ghent/public_events_splitter'
-require 'ghent/public_events_trigger'
-#require 'ghent/public_events_worker'
+require 'ghent/events_splitter'
+require 'ghent/events_trigger'
+require 'ghent/event_worker'
 require 'ghent/collection_group'
