@@ -5,9 +5,16 @@ Manifest.txt
 README.rdoc
 Rakefile
 bin/gen-gha-urls
+bin/gh-event-rate
 bin/gha-mirror
 bin/gha-sync
+bin/gha-sync-check
 lib/ghent.rb
+lib/ghent/api_request.rb
+lib/ghent/collection_group.rb
+lib/ghent/event_worker.rb
+lib/ghent/events_splitter.rb
+lib/ghent/events_trigger.rb
 spec/spec_helper.rb
 spec/version_spec.rb
 tasks/default.rake
