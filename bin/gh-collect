@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+require 'ghent'
+
+Celluloid.logger = Ghent::Logger.new
+Ghent::CollectionGroup.run

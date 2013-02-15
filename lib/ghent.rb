@@ -3,6 +3,9 @@ module Ghent
 end
 
 require 'celluloid'
+require 'logging'
+
+require 'ghent/logable'
 require 'ghent/api_request'
 require 'ghent/events_splitter'
 require 'ghent/events_trigger'
