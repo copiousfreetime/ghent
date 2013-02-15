@@ -1,1 +1,1 @@
-rvm use @ghent --create
+rvm use jruby@ghent --create
