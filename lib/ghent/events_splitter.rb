@@ -53,12 +53,28 @@ module Ghent
       return ne
     end
 
-    def split_response( _, response )
-      events = JSON.parse( response.body )
-      info "#{self.class} splitting response from #{_}"
-      added = add_events( events )
-      info "#{self.class} added #{added.size} to lru which now has size #{lru.size}"
-      submit_next_request( response.headers ) unless added.empty?
+    def split_response( topic, msg )
+      req_url, req_etag, response = *msg
+
+      if response.ok? then
+        events = JSON.parse( response.body )
+        info "#{self.class} splitting response from #{_}"
+        added = add_events( events )
+        info "#{self.class} added #{added.size} to lru which now has size #{lru.size}"
+        submit_next_request( response.headers ) unless added.empty?
+      else
+        error "#{self.class} received response of #{response.code}"
+        requeue_request( req_url, req_etag, topic ) if response.status >= 500
+      end
+    rescue StandardError => se
+      error "#{self.class} Error with response #{se.inspect}"
+      error "#{self.class} response body : >>>#{response.body}<<<"
+    end
+
+    def requeue_request( req_url, req_etag, topic )
+      r = [ req_url, req_etag, topic ]
+      info "#{self.class} Requeueing #{r}"
+      api_actor.mailbox << r
     end
 
     def submit_next_request( headers )

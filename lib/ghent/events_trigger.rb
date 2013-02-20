@@ -38,9 +38,11 @@ module Ghent
     # Internal: subscription calback, this is invoked when the ApiRequest has
     # finished with the request and sends us the response so we can update our
     # parameters.
-    def event_response( _, response )
-      self.etag          = response.headers['ETag']
-      self.poll_interval = response.headers['X-Poll-Interval'].to_i
+    def event_response( _, msg)
+      req_url, req_etag, response = *msg
+
+      self.etag           = response.headers['ETag']
+      self.poll_interval  = response.headers['X-Poll-Interval'].to_i
       info "#{self.class} event_response etag '#{etag}' and poll_interval #{poll_interval}"
     end
 

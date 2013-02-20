@@ -35,7 +35,7 @@ module Ghent
 
         response = client.get( url, nil, request_headers)
         info "#{self.class} sending #{response} (#{response.status_code}) to #{response_to}"
-        async.publish( response_to, response )
+        async.publish( response_to, [ url, etag, response ])
       end
     end
   end
