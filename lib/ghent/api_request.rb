@@ -35,7 +35,7 @@ module Ghent
 
         response = client.get( url, nil, request_headers)
         info "#{self.class} sending #{response} (#{response.status_code}) to #{response_to}"
-        info "#{self.class} Rate Limit #{response.headers['X-RateLimit-Reamining']}/#{response.headers['X-RateLimit-Limit']}"
+        info "#{self.class} Rate Limit #{response.headers['X-RateLimit-Remaining']}/#{response.headers['X-RateLimit-Limit']}"
         async.publish( response_to, [ url, etag, response ])
       end
     end
