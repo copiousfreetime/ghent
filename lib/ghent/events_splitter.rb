@@ -58,7 +58,7 @@ module Ghent
 
       if response.ok? then
         events = JSON.parse( response.body )
-        info "#{self.class} splitting response from #{_}"
+        info "#{self.class} splitting response from #{topic}"
         added = add_events( events )
         info "#{self.class} added #{added.size} to lru which now has size #{lru.size}"
         submit_next_request( response.headers ) unless added.empty?
