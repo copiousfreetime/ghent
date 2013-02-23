@@ -2,7 +2,7 @@
 require 'date'
 
 base_url    = "http://data.githubarchive.org"
-start_date  = Date.new( 2013, 02, 13 )
+start_date  = Date.new( 2013, 02, 20 )
 end_date    = Date.today
 
 (start_date..end_date).each do |d|
