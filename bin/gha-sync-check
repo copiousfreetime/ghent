@@ -38,8 +38,6 @@ $stdout.sync = true
 base_url = Addressable::URI.parse( "http://data.githubarchive.org" )
 client   = HTTPClient.new
 cf_files.keys.sort.each do |basename|
-#DATA.each_line do |basename|
-  basename.strip!
   check_hash = cf_files[basename][:hash]
 
   check_uri  = base_url.join( basename ).to_s
