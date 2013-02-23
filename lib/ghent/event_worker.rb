@@ -5,8 +5,10 @@ module Ghent
     include Celluloid::Notifications
     include Celluloid::Logger
 
+    attr_reader :kclient
+
     def initialize
-      @queue_publisher = KJess::Client.new( 'localhost' )
+      @kclient = KJess::Client.new
       async.process_mailbox
     end
 
@@ -14,11 +16,15 @@ module Ghent
       "ghent_incoming"
     end
 
+    def queue( msg )
+      kclient.set( queue_name, msg )
+    end
+
     def process_mailbox
       loop do
         msg = receive { |msg| true }
         info "#{self.class} processing event #{msg['id']}"
-        queue_publisher.set( queue_name, msg.to_json )
+        queue( msg.to_json )
       end
     end
   end
