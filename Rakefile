@@ -15,6 +15,7 @@ This.ruby_gemspec do |spec|
   spec.add_dependency( 'netrc', '~> 0.7.7' )
   spec.add_dependency( 'httpclient', '~> 2.3' )
   spec.add_dependency( 'logging', '~> 1.8.1' )
+  spec.add_dependency( 'kjess', '~> 1.1.0' )
 
   spec.add_development_dependency( 'rake'     , '~> 10.0.3')
   spec.add_development_dependency( 'minitest' , '~> 4.5.0' )
