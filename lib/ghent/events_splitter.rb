@@ -69,6 +69,7 @@ module Ghent
     rescue StandardError => se
       error "#{self.class} Error with response #{se.inspect}"
       error "#{self.class} response body : >>>#{response.body}<<<"
+      requeue_request( req_url, req_etag, topic )
     end
 
     def requeue_request( req_url, req_etag, topic )
