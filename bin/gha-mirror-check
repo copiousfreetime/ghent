@@ -8,47 +8,78 @@ require 'thread'
 require 'httpclient'
 require 'addressable/uri'
 
-creds = Netrc.read['aws.amazon.com']
 
-BASE_GHA_URL       = "http://data.githubarchive.org"
-GHA_BUCKET         = 'ghadata.copiousfreetime.org'
+BASE_GHA_URL    = "http://data.githubarchive.org"
+GHA_BUCKET      = 'ghadata.copiousfreetime.org'
+BASE_URL        = Addressable::URI.parse( BASE_GHA_URL )
+netrc           = Netrc.read[ 'aws.amazon.com' ]
+S3_HANDLE       = AWS::S3.new( :access_key_id => netrc[0], :secret_access_key => netrc[1] )
+Thread.abort_on_exception = true
+WORKERS         = 4
 
-netrc     = Netrc.read[ 'aws.amazon.com' ]
-s3        = AWS::S3.new( :access_key_id => netrc[0], :secret_access_key => netrc[1] )
-base_url  = Addressable::URI.parse( BASE_GHA_URL )
-
-# Get the list of urls that we already have in the system
-gha_bucket     = s3.buckets[ GHA_BUCKET ]
-uploaded       = gha_bucket.objects
-puts "Building list of items to check..."
-uploaded_md5   = uploaded.map { |u| [u, u.etag] }
-
-puts " Checking #{uploaded_md5.size} s3 files against #{BASE_GHA_URL}"
 success = Queue.new
 failure = Queue.new
 log     = Queue.new
+jobs    = Queue.new
 
 logger = Thread.new do
   loop do
     msg = log.deq
+    break if msg == :done
     puts msg
   end
 end
 
-uploaded_md5.threadify do |job|
+# Get the list of urls that we already have in the system
+gha_bucket      = S3_HANDLE.buckets[ GHA_BUCKET ]
+
+producer = Thread.new do
+  log << "Building list of items to check..."
+  gha_bucket.objects.each( :batch_size => 1000 ) do |u|
+    jobs << [u.key, u.etag]
+    log << "#{u.key.ljust(42)} : queueing"
+  end
+  WORKERS.times { jobs << :done }
+  log << "Producer exiting"
+end
+
+def check_one( job, success, failure, log )
   key, etag  = *job
   client     = HTTPClient.new
-  check_uri  = base_url.join( key ).to_s
+  check_uri  = BASE_URL.join( key ).to_s
   res        = client.head( check_uri, nil, { 'If-None-Match' => etag } )
   
   if res.status_code == 304 then
-    success << basename
+    success << key 
     log << "#{key.ljust( 42) } : success"
   else
-    failure << basename
+    failure << key 
     log << "#{key.ljust( 42) } : failure\n#{res.inspect}"
   end
 end
 
+consumers = ThreadGroup.new
+
+WORKERS.times do |x|
+  puts "Spawning consumer #{x}"
+  t = Thread.new do
+    loop do
+      job = jobs.deq
+      break if job == :done
+      check_one( job, success, failure, log ) 
+    end
+    log << "worker done"
+  end 
+  consumers.add( t )
+end
+
+puts "Waiting for producer to die"
+producer.join
+
+puts "Waiting for consumers to die"
+consumers.list.each do |t|
+  t.join
+end
+log << :done
 logger.join
-puts "  success: #{"%6d" % success.size}\tfailure: #{"%6d" % failure.size}\ttotal: #{uploaded_md5.size}\r"
+puts "  success: #{"%6d" % success.size}\tfailure: #{"%6d" % failure.size}"
