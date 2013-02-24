@@ -64,9 +64,12 @@ to_upload.threadify do |key|
       x_opt = options.merge( :content_md5 => md5 )
       log_box.enq "#{Thread.current.object_id} uploading #{key}"
       s3_obj.write( data, x_opt )
+      data = nil
     else
-      lgo_box.enq "#{Thread.current.object_id} received #{res.code} from #{key}"
+      log_box.enq "#{Thread.current.object_id} received #{res.code} from #{key}"
     end
+    res = nil
   end
+  nil
 end
 logger.join
