@@ -1,9 +1,59 @@
-#!/bin/sh
+#!/usr/bin/env ruby
+require 'netrc'
+require 'aws'
+require 'digest/md5'
+require 'threadify'
+require 'net/http'
 
-GHENT_DATA_DIR=${GHENT_ROOT}/data
-GHENT_BIN_DIR=${GHENT_ROOT}/bin
-GHENT_URL_GEN=${GHENT_BIN_DIR}/gen-gha-urls
+def gen_upload_dates( uploaded_dates )
+  start_date = uploaded_dates.last || DEFAULT_START_DATE
+  end_date   = Date.today
+  dates      = []
+  (start_date..end_date).each do |d|
+    (0..23).each do |h|
+      dates << "#{d.strftime("%Y-%m-%d")}-#{h}.json.gz"
+    end
+  end
+  return dates
+end
 
+# http://www.githubarchive.org/
+# Note: timeline data is available starting February 12, 2011.
+DEFAULT_START_DATE = Date.new( 2011, 02, 12 )
+BASE_GHA_URL       = "data.githubarchive.org"
+GHA_BUCKET         = 'ghadata.copiousfreetime.org'
 
-pushd ${GHENT_DATA_DIR}
-${GHENT_URL_GEN} | wget --timestamping --input-file=-
+netrc = Netrc.read[ 'aws.amazon.com' ]
+s3    = AWS::S3.new( :access_key_id => netrc[0], :secret_access_key => netrc[1] )
+
+# Get the list of urls that we already have in the system
+gha_bucket     = s3.buckets[ GHA_BUCKET ]
+uploaded       = gha_bucket.objects
+uploaded_dates = uploaded.map { |u| 
+  year, month, day, hour = File.basename( u.key, ".json.gz" ).split("-").map(&:to_i)
+  Date.new( year, month, day )
+}.sort
+
+puts "We have #{uploaded_dates.size} objects from #{uploaded_dates.first} to #{uploaded_dates.last}"
+to_upload    = gen_upload_dates( uploaded_dates )
+puts "We need to upload #{to_upload.size} files"
+options = { :content_type     => 'application/json',
+            :content_encoding => 'gzip' }
+
+to_upload.threadify do |key|
+  url    = "#{BASE_GHA_URL}/#{key}"
+  s3_obj = gha_bucket.objects[key]
+  $stderr.puts "downloading #{key}"
+  Net::HTTP.get_response( BASE_GHA_URL, "/#{key}" ) do |res|
+    if res.code == "200" then
+      data = res.body
+      etag = res['ETag']
+      md5  = Digest::MD5.base64digest( data )
+      x_opt = options.merge( :content_md5 => md5 )
+      $stderr.puts "uploading #{key} got #{etag} created #{md5}"
+      s3_obj.write( data, x_opt )
+    else
+      puts "received #{res.code.inspect} from #{key}"
+    end
+  end
+end
