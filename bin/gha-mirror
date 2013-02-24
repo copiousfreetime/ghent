@@ -4,6 +4,7 @@ require 'aws'
 require 'digest/md5'
 require 'threadify'
 require 'net/http'
+require 'thread'
 
 def gen_upload_dates( uploaded_dates )
   start_date = uploaded_dates.last || DEFAULT_START_DATE
@@ -40,20 +41,32 @@ puts "We need to upload #{to_upload.size} files"
 options = { :content_type     => 'application/json',
             :content_encoding => 'gzip' }
 
+log_box = Queue.new
+
+logger = Thread.new do
+  loop do
+    msg = log_box.deq
+    break if msg == :done
+    $stderr.puts msg
+  end
+end
+
+
 to_upload.threadify do |key|
   url    = "#{BASE_GHA_URL}/#{key}"
   s3_obj = gha_bucket.objects[key]
-  $stderr.puts "downloading #{key}"
+  log_box.enq "#{Thread.current.object_id} downloading #{key}"
   Net::HTTP.get_response( BASE_GHA_URL, "/#{key}" ) do |res|
     if res.code == "200" then
       data = res.body
       etag = res['ETag']
       md5  = Digest::MD5.base64digest( data )
       x_opt = options.merge( :content_md5 => md5 )
-      $stderr.puts "uploading #{key} got #{etag} created #{md5}"
+      log_box.enq "#{Thread.current.object_id} uploading #{key}"
       s3_obj.write( data, x_opt )
     else
-      puts "received #{res.code.inspect} from #{key}"
+      lgo_box.enq "#{Thread.current.object_id} received #{res.code} from #{key}"
     end
   end
 end
+logger.join
