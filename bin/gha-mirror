@@ -23,6 +23,7 @@ end
 DEFAULT_START_DATE = Date.new( 2011, 02, 12 )
 BASE_GHA_URL       = "data.githubarchive.org"
 GHA_BUCKET         = 'ghadata.copiousfreetime.org'
+WORKER_COUNT       = 12
 
 netrc = Netrc.read[ 'aws.amazon.com' ]
 s3    = AWS::S3.new( :access_key_id => netrc[0], :secret_access_key => netrc[1] )
@@ -47,12 +48,13 @@ logger = Thread.new do
   loop do
     msg = log_box.deq
     break if msg == :done
-    $stderr.puts msg
+    puts msg
   end
 end
 
+uploaders = ThreadGroup.new
 
-to_upload.threadify do |key|
+to_upload.threadify( WORKER_COUNT ) do |key|
   url    = "#{BASE_GHA_URL}/#{key}"
   s3_obj = gha_bucket.objects[key]
   log_box.enq "#{Thread.current.object_id} downloading #{key}"
@@ -72,4 +74,14 @@ to_upload.threadify do |key|
   end
   nil
 end
+
+puts "Waiting for uploaders to die"
+uploaders.list.each do |t|
+  t.join
+end
+
+log_box << :done
+
 logger.join
+puts "Done"
+
