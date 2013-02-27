@@ -20,8 +20,8 @@ This.ruby_gemspec do |spec|
   spec.add_dependency( 'threadify', '~> 1.3' )
 
   spec.add_development_dependency( 'rake'     , '~> 10.0.3')
-  spec.add_development_dependency( 'minitest' , '~> 4.5.0' )
-  spec.add_development_dependency( 'rdoc'     , '~> 3.12'   )
+  spec.add_development_dependency( 'minitest' , '~> 4.6' )
+  spec.add_development_dependency( 'rdoc'     , '~> 4.0' )
 
 end
 
