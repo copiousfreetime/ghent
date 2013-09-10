@@ -23,7 +23,7 @@ module Ghent
     def process_mailbox
       loop do
         msg = receive { |msg| true }
-        info "#{self.class} processing event #{msg['id']}"
+        #debug "#{self.class} processing event #{msg['id']}"
         queue( msg.to_json )
       end
     end

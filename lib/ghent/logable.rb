@@ -12,14 +12,14 @@ module Ghent
     def self.init
       unless @initialized then
         layout   = ::Logging::Layouts::Pattern.new( :pattern => "%5l %c %t : %m\n" )
-        appender = ::Logging::Appenders::Stderr.new( Ghent.app_name,
-        #appender = ::Logging::Appenders::Syslog.new( Ghent.app_name,
+        #appender = ::Logging::Appenders::Stderr.new( Ghent.app_name,
+        appender = ::Logging::Appenders::Syslog.new( Ghent.app_name,
                                                     :logopt => ::Syslog::Constants::LOG_CONS | ::Syslog::Constants::LOG_PID, 
                                                     :facility => ::Syslog::Constants::LOG_LOCAL1,
                                                     :layout => layout)
         gemology_logger = ::Logging::Logger[Ghent]
-        #::Logging::Appenders['syslog'] = appender
-        ::Logging::Appenders['ghent'] = appender
+        ::Logging::Appenders['syslog'] = appender
+        #::Logging::Appenders['ghent'] = appender
         gemology_logger.add_appenders( appender )
         @initialized = true
       end
